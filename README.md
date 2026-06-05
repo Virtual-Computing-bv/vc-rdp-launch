@@ -78,8 +78,10 @@ Verifiëren op device: `assoc .rdpw` / `ftype VcRdpLaunch` ; logs in
 `C:\ProgramData\VirtualComputing\Logs\setup.log`.
 
 ## Caveats
-- **Code-signing**: op WDAC/locked werkplekken moet de exe gesigned + allowlisted
-  zijn. Test ongesigned alleen op niet-gelockte machines.
+- **Code-signing (verplicht voor productie)**: ongesignd blokkeert Defender/
+  SmartScreen de exe op reputatie (geen virus — geen reputatie). Tekenen lost het
+  op: `build\build.ps1 -SignThumbprint <thumbprint>`. Cert-keuze + Azure Trusted
+  Signing: zie [SIGNING.md](SIGNING.md).
 - **MSIX-identity**: de gestagede engine draait buiten z'n package-identity. Pure
   graphics/multimon/codec werken (getest). **Teams-media-optimalisatie op VDI** kan
   degraderen — apart valideren als klanten dat binnen de sessie nodig hebben.
