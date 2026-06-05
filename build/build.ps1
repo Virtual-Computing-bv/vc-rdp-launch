@@ -12,8 +12,13 @@
 #>
 param(
     [string]$Csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe",
+    # Klassiek cert in de cert-store:
     [string]$SignThumbprint,
-    [string]$TimestampUrl = "http://timestamp.digicert.com"
+    [string]$TimestampUrl = "http://timestamp.digicert.com",
+    # Azure Artifact Signing (Trusted Signing): pad naar dlib + metadata.json
+    [string]$SignDlib,
+    [string]$SignMetadata,
+    [string]$AcsTimestampUrl = "http://timestamp.acs.microsoft.com"
 )
 $ErrorActionPreference = 'Stop'
 $root   = Split-Path $PSScriptRoot -Parent
@@ -24,15 +29,29 @@ $setup  = Join-Path $outDir 'vc-rdp-setup.exe'
 
 if (-not (Test-Path $Csc)) { throw "csc niet gevonden: $Csc" }
 
+function Get-SignTool {
+    # Artifact Signing client tools leveren een eigen signtool; anders de Windows SDK.
+    foreach ($base in @("$env:LOCALAPPDATA\Microsoft\WinGet\Packages", (Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'))) {
+        $st = Get-ChildItem $base -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -Last 1
+        if ($st) { return $st.FullName }
+    }
+    throw "signtool.exe niet gevonden (installeer de Windows SDK of de Artifact Signing client tools)"
+}
+
 function Invoke-Sign([string]$file) {
-    if (-not $SignThumbprint) { return }
-    $kits = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
-    $st = Get-ChildItem $kits -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
-          Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -Last 1
-    if (-not $st) { throw "signtool.exe niet gevonden onder '$kits' (installeer de Windows 10/11 SDK)" }
-    & $st.FullName sign /sha1 $SignThumbprint /fd SHA256 /tr $TimestampUrl /td SHA256 $file
-    if ($LASTEXITCODE -ne 0) { throw "signtool faalde voor $file" }
-    Write-Host "  getekend: $file"
+    if ($SignDlib -and $SignMetadata) {
+        # Azure Artifact Signing (Trusted Signing)
+        & (Get-SignTool) sign /v /fd SHA256 /tr $AcsTimestampUrl /td SHA256 /dlib $SignDlib /dmdf $SignMetadata $file
+        if ($LASTEXITCODE -ne 0) { throw "Artifact Signing faalde voor $file" }
+        Write-Host "  getekend (Artifact Signing): $file"
+    }
+    elseif ($SignThumbprint) {
+        # Klassiek cert in de cert-store
+        & (Get-SignTool) sign /sha1 $SignThumbprint /fd SHA256 /tr $TimestampUrl /td SHA256 $file
+        if ($LASTEXITCODE -ne 0) { throw "signtool faalde voor $file" }
+        Write-Host "  getekend: $file"
+    }
 }
 
 $icon    = Join-Path $src 'red.ico'
@@ -56,7 +75,7 @@ if ($LASTEXITCODE -ne 0) { throw "setup-build faalde (exit $LASTEXITCODE)" }
 Invoke-Sign $setup
 Write-Host "OK  -> $setup ($((Get-Item $setup).Length) bytes)"
 
-if (-not $SignThumbprint) {
-    Write-Host "LET OP: ongesignd gebouwd. Productie: .\build.ps1 -SignThumbprint <thumbprint>  (zie SIGNING.md)"
+if (-not $SignThumbprint -and -not ($SignDlib -and $SignMetadata)) {
+    Write-Host "LET OP: ongesignd gebouwd. Productie (Artifact Signing): .\build.ps1 -SignDlib <dll> -SignMetadata <metadata.json>  (zie SIGNING.md)"
 }
 Write-Host "Klaar. Geef vc-rdp-setup.exe aan de klant (run als admin / Intune /silent)."
