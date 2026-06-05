@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Intune Settings Catalog -> "Configure Default Apps" / DefaultAssociationsConfiguration
+  (device_vendor_msft_policy_config_applicationdefaults_defaultassociationsconfiguration).
+  Zet de standaard-app voor .rdp en .rdpw op de VcRdpLaunch-ProgId.
+  Spiegelt het Markteffect-profiel (id bb5b7768) maar dan naar onze eigen launcher.
+  Wijs toe aan All Devices; landt bij sync + sign-out/in of reboot.
+  Verifieer op device:  assoc .rdpw   /   ftype VcRdpLaunch
+-->
+<DefaultAssociations>
+  <Association Identifier=".rdp"  ProgId="VcRdpLaunch" ApplicationName="Remote Desktop (VC)" />
+  <Association Identifier=".rdpw" ProgId="VcRdpLaunch" ApplicationName="Remote Desktop (VC)" />
+</DefaultAssociations>

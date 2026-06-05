@@ -1,0 +1,9 @@
+# Build-output: niet in git — downloadbaar via GitHub Releases
+build/*.exe
+
+# Intune-artefacten: package via Releases; tool is van Microsoft (zie INTUNE.md)
+intune/*.intunewin
+intune/IntuneWinAppUtil.exe
+intune/source/
+
+*.log
