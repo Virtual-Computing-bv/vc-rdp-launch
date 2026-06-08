@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class VcRdpSetup
 {
-    private const string ProductVersion = "1.0.0";
+    private const string ProductVersion = "1.0.2";
     private const string ProgId     = "VcRdpLaunch";
     private const string LauncherEx = "vc-rdp-launch.exe";
     private const string SetupExe   = "vc-rdp-setup.exe";
@@ -226,30 +226,24 @@ internal static class VcRdpSetup
         string tag = Path.GetFileName(pkgRoot);
         string marker = Path.Combine(baseDir, ".engine-version");
 
-        string current = File.Exists(marker) ? File.ReadAllText(marker).Trim() : "";
+        // Marker-lezen afvangen: een onleesbare/kapotte marker mag de install niet
+        // breken — gewoon als 'verouderd' behandelen en opnieuw stagen.
+        string current = "";
+        try { if (File.Exists(marker)) current = File.ReadAllText(marker).Trim(); }
+        catch (Exception ex) { Log("marker onleesbaar (" + ex.Message + ") -> herstage."); }
+
         if (current == tag && File.Exists(Path.Combine(dst, "msrdc.exe"))) { Log("Engine al actueel (" + tag + ")."); return; }
 
         Log("Stage engine " + tag);
-        if (Directory.Exists(baseDir)) { try { Directory.Delete(baseDir, true); } catch { } }
+        // Schoon herstagen. Als admin kan de hele tak weg (parent geeft Full), ook
+        // als een kind een rare/lege ACL heeft.
+        if (Directory.Exists(baseDir)) { try { Directory.Delete(baseDir, true); } catch (Exception ex) { Log("oude stage verwijderen: " + ex.Message); } }
         CopyDir(src, dst);
         File.WriteAllText(marker, tag);
-
-        // Users: lezen+uitvoeren; schrijven alleen admin/SYSTEM.
-        RunIcacls(baseDir);
-    }
-
-    private static void RunIcacls(string dir)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo("icacls.exe",
-                "\"" + dir + "\" /inheritance:r " +
-                "/grant:r \"*S-1-5-32-545:(OI)(CI)RX\" \"*S-1-5-32-544:(OI)(CI)F\" \"*S-1-5-18:(OI)(CI)F\" /T /C")
-            { UseShellExecute = false, CreateNoWindow = true };
-            var p = Process.Start(psi); p.WaitForExit(30000);
-            Log("icacls exit " + p.ExitCode);
-        }
-        catch (Exception ex) { Log("icacls: " + ex.Message); }
+        // GEEN expliciete icacls: een nieuwe map onder ProgramData erft standaard
+        // Users:Read&Execute + Administrators/SYSTEM:Full — genoeg om msrdc te draaien.
+        // (De oude icacls /inheritance:r + (OI)(CI) op bestanden via /T liet kinderen
+        //  met een lege ACL achter -> 'Toegang geweigerd'. Daarom verwijderd.)
     }
 
     private static void RegisterAssociations(string launcher)

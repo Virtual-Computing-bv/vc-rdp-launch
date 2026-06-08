@@ -27,7 +27,7 @@ selecteer `vc-rdp-setup.intunewin`.
 | Regeltype | Register |
 | Sleutelpad | `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\VcRdpLaunch` |
 | Waarde | `DisplayVersion` |
-| Detectiemethode | Tekenreeksvergelijking — **gelijk aan** `1.0.0` |
+| Detectiemethode | **Sleutel/waarde bestaat** (ontkoppeld van versie) — of tekenreeks = `1.0.2` |
 
 (Alternatief: "Sleutel/waarde bestaat" op dezelfde sleutel.)
 
